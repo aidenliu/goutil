@@ -34,16 +34,16 @@ func (m *Client) Set(key string, value []byte, expire int32) error {
 }
 
 // Del 删除值
-func (m *Client) Del(prefixCode, key string) error {
+func (m *Client) Del(key string) error {
 	return m.c.Delete(key)
 }
 
 // Incre 递增值
-func (m *Client) Incre(prefixCode, key string, num uint64) (uint64, error) {
+func (m *Client) Incre(key string, num uint64) (uint64, error) {
 	return m.c.Increment(key, num)
 }
 
 // Decre 递减值
-func (m *Client) Decre(prefixCode, key string, num uint64) (uint64, error) {
+func (m *Client) Decre(key string, num uint64) (uint64, error) {
 	return m.c.Decrement(key, num)
 }

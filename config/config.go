@@ -21,17 +21,32 @@ var ServiceConfig = make(map[string]map[string]string)
 // VendorConfig 第三方服务配置
 var VendorConfig = make(map[string]map[string]string)
 
+// DbConfig 数据库配置
+var DbConfig = struct {
+	DbUser    string
+	DbPWD     string
+	DbName    string
+	DbCharset string
+	DbSource  []struct {
+		TableNum      int
+		TableName     []string
+		TableIndexLen int
+		DbName        string
+		DbHost        []string
+	}
+}{}
+
 func init() {
 	file, _ := exec.LookPath(os.Args[0])
 	configPath, _ := filepath.Abs(file)
 	configPath = filepath.Dir(configPath) + "/conf"
-
 	commonPath := configPath + "/common/"
-	if _, err := os.Stat("/www/web/Product"); err == nil {
-		configPath += "/product"
+	if runEnv := os.Getenv("RUN_ENV"); runEnv != "" {
+		configPath += "/" + runEnv
 	} else {
 		configPath += "/dev"
 	}
+
 	log.SetFlags(log.Lshortfile | log.Lmicroseconds | log.Ldate)
 	viper.AddConfigPath(commonPath)
 	viper.AddConfigPath(configPath)
@@ -69,6 +84,15 @@ func init() {
 		log.Panicln(err)
 	} else {
 		if err := viper.Unmarshal(&VendorConfig); err != nil {
+			log.Panicln(err)
+		}
+	}
+	// 数据库服务配置
+	viper.SetConfigName("db.yaml")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Panicln(err)
+	} else {
+		if err := viper.Unmarshal(&DbConfig); err != nil {
 			log.Panicln(err)
 		}
 	}
