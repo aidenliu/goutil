@@ -1,4 +1,4 @@
-package libs
+package goutil
 
 import (
 	"encoding/binary"
@@ -6,6 +6,7 @@ import (
 	"github.com/neverlee/goyar"
 	"math/rand"
 	"net"
+	"os"
 	"strings"
 	"time"
 )
@@ -108,4 +109,12 @@ func GetLocalIp() (string, error) {
 		}
 	}
 	return "", nil
+}
+
+func FileExists(filePath string) bool {
+	if _, err := os.Stat(filePath); err != nil && err == os.ErrExist {
+		return false
+	} else {
+		return true
+	}
 }

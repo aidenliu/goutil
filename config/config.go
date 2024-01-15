@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/aidenliu/goutil"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	"log"
@@ -40,7 +41,7 @@ func init() {
 	file, _ := exec.LookPath(os.Args[0])
 	configPath, _ := filepath.Abs(file)
 	configPath = filepath.Dir(configPath) + "/conf"
-	commonPath := configPath + "/common/"
+	commonPath := configPath + "/common"
 	if runEnv := os.Getenv("RUN_ENV"); runEnv != "" {
 		configPath += "/" + runEnv
 	} else {
@@ -52,48 +53,58 @@ func init() {
 	viper.AddConfigPath(configPath)
 	viper.SetConfigType("yaml")
 	// 通用常量
-	viper.SetConfigName("constant.yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Panicln(err)
-	} else {
-		if err := viper.Unmarshal(&CommonConstant); err != nil {
+	if goutil.FileExists(commonPath + "/constant.yaml") {
+		viper.SetConfigName("constant.yaml")
+		if err := viper.ReadInConfig(); err != nil {
 			log.Panicln(err)
+		} else {
+			if err := viper.Unmarshal(&CommonConstant); err != nil {
+				log.Panicln(err)
+			}
 		}
 	}
 	// 环境常量
-	viper.SetConfigName("envconstant.yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Panicln(err)
-	} else {
-		if err := viper.Unmarshal(&EnvConstant); err != nil {
+	if goutil.FileExists(configPath + "/envconstant.yaml") {
+		viper.SetConfigName("envconstant.yaml")
+		if err := viper.ReadInConfig(); err != nil {
 			log.Panicln(err)
+		} else {
+			if err := viper.Unmarshal(&EnvConstant); err != nil {
+				log.Panicln(err)
+			}
 		}
 	}
 	// 服务
-	viper.SetConfigName("service.yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Panicln(err)
-	} else {
-		if err := viper.Unmarshal(&ServiceConfig); err != nil {
+	if goutil.FileExists(configPath + "/service.yaml") {
+		viper.SetConfigName("service.yaml")
+		if err := viper.ReadInConfig(); err != nil {
 			log.Panicln(err)
+		} else {
+			if err := viper.Unmarshal(&ServiceConfig); err != nil {
+				log.Panicln(err)
+			}
 		}
 	}
 	// 第三方服务配置
-	viper.SetConfigName("vendor.yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Panicln(err)
-	} else {
-		if err := viper.Unmarshal(&VendorConfig); err != nil {
+	if goutil.FileExists(configPath + "/vendor.yaml") {
+		viper.SetConfigName("vendor.yaml")
+		if err := viper.ReadInConfig(); err != nil {
 			log.Panicln(err)
+		} else {
+			if err := viper.Unmarshal(&VendorConfig); err != nil {
+				log.Panicln(err)
+			}
 		}
 	}
 	// 数据库服务配置
-	viper.SetConfigName("db.yaml")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Panicln(err)
-	} else {
-		if err := viper.Unmarshal(&DbConfig); err != nil {
+	if goutil.FileExists(configPath + "/db.yaml") {
+		viper.SetConfigName("db.yaml")
+		if err := viper.ReadInConfig(); err != nil {
 			log.Panicln(err)
+		} else {
+			if err := viper.Unmarshal(&DbConfig); err != nil {
+				log.Panicln(err)
+			}
 		}
 	}
 	// 自动载入配置
