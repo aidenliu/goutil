@@ -10,6 +10,23 @@ import (
 	"path/filepath"
 )
 
+type dbConfig struct {
+	DbUser    string
+	DbPWD     string
+	DbName    string
+	DbCharset string
+	DbSource  []struct {
+		TableNum      int
+		TableName     []string
+		TableIndexLen int
+		DbName        string
+		DbHost        []string
+	}
+}
+
+// RunEnv 运行环境
+var RunEnv string
+
 // CommonConstant 通用常量配置
 var CommonConstant = make(map[string]map[string]string)
 
@@ -23,21 +40,9 @@ var ServiceConfig = make(map[string]map[string]string)
 var VendorConfig = make(map[string]map[string]string)
 
 // DbConfig 数据库配置
-var DbConfig = struct {
-	DbUser    string
-	DbPWD     string
-	DbName    string
-	DbCharset string
-	DbSource  []struct {
-		TableNum      int
-		TableName     []string
-		TableIndexLen int
-		DbName        string
-		DbHost        []string
-	}
-}{}
+var DbConfig = dbConfig{}
 
-func init() {
+func InitLoad() {
 	file, _ := exec.LookPath(os.Args[0])
 	configPath, _ := filepath.Abs(file)
 	configPath = filepath.Dir(configPath) + "/conf"
@@ -153,4 +158,9 @@ func Vendor(key string) map[string]string {
 		return nil
 	}
 	return c
+}
+
+// Db 数据库配置
+func Db() dbConfig {
+	return DbConfig
 }

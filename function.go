@@ -112,7 +112,7 @@ func GetLocalIp() (string, error) {
 }
 
 func FileExists(filePath string) bool {
-	if _, err := os.Stat(filePath); err != nil && err == os.ErrNotExist {
+	if _, err := os.Stat(filePath); err != nil && os.IsNotExist(err) {
 		return false
 	} else {
 		return true
