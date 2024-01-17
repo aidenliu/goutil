@@ -111,6 +111,7 @@ func GetLocalIp() (string, error) {
 	return "", nil
 }
 
+// FileExists 判断文件是否存在
 func FileExists(filePath string) bool {
 	if _, err := os.Stat(filePath); err != nil && os.IsNotExist(err) {
 		return false
