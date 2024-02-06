@@ -46,13 +46,16 @@ func InitLoad() {
 	file, _ := exec.LookPath(os.Args[0])
 	configPath, _ := filepath.Abs(file)
 	configPath = filepath.Dir(configPath) + "/conf"
+	if !goutil.FileExists(configPath) {
+		currentPath, _ := os.Getwd()
+		configPath = currentPath + "/conf"
+	}
 	commonPath := configPath + "/common"
 	if runEnv := os.Getenv("RUN_ENV"); runEnv != "" {
 		configPath += "/" + runEnv
 	} else {
 		configPath += "/dev"
 	}
-
 	log.SetFlags(log.Lshortfile | log.Lmicroseconds | log.Ldate)
 	viper.AddConfigPath(commonPath)
 	viper.AddConfigPath(configPath)
