@@ -1,13 +1,16 @@
 package config
 
 import (
-	"github.com/aidenliu/goutil"
-	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
+
+	"github.com/aidenliu/goutil"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
 type dbConfig struct {
@@ -24,9 +27,6 @@ type dbConfig struct {
 	}
 }
 
-// RunEnv 运行环境
-var RunEnv string
-
 // CommonConstant 通用常量配置
 var CommonConstant = make(map[string]map[string]string)
 
@@ -42,84 +42,149 @@ var VendorConfig = make(map[string]map[string]string)
 // DbConfig 数据库配置
 var DbConfig = dbConfig{}
 
-func InitLoad() {
+func init() {
+	log.SetFlags(log.Lshortfile | log.Lmicroseconds | log.Ldate)
+	_ = InitLoad()
+}
+
+func getConfigPath() string {
 	file, _ := exec.LookPath(os.Args[0])
 	configPath, _ := filepath.Abs(file)
 	configPath = filepath.Dir(configPath) + "/conf"
 	if !goutil.FileExists(configPath) {
 		currentPath, _ := os.Getwd()
-		configPath = currentPath + "/conf"
+		configPath = currentPath + "/bin/conf"
 	}
-	commonPath := configPath + "/common"
 	if runEnv := os.Getenv("RUN_ENV"); runEnv != "" {
 		configPath += "/" + runEnv
 	} else {
-		configPath += "/dev"
+		configPath += "/rc"
 	}
-	log.SetFlags(log.Lshortfile | log.Lmicroseconds | log.Ldate)
-	viper.AddConfigPath(commonPath)
-	viper.AddConfigPath(configPath)
-	viper.SetConfigType("yaml")
+	return configPath
+}
+
+func ParseFile(fileName string, data any) error {
+	configPath := getConfigPath()
+	fileFullName := fmt.Sprintf("%s/%s", configPath, fileName)
+	if goutil.FileExists(fileFullName) {
+		vp := viper.New()
+		vp.SetConfigFile(fileFullName)
+		if err := vp.ReadInConfig(); err != nil {
+			return err
+		} else {
+			if err := vp.Unmarshal(data); err != nil {
+				return err
+			}
+			// 自动载入配置
+			vp.OnConfigChange(func(e fsnotify.Event) {
+				err := vp.Unmarshal(data)
+				log.Printf("config file[%s] has changed, reload[%s]\n", e.Name, err)
+			})
+			vp.WatchConfig()
+			return nil
+		}
+	} else {
+		return fmt.Errorf("not find the config file:%s", fileFullName)
+	}
+}
+
+func InitLoad() error {
+	configPath := getConfigPath()
+	commonPath := ""
+	if index := strings.LastIndex(configPath, "/"); index != -1 {
+		commonPath = configPath[:index] + "/common"
+	}
 	// 通用常量
 	if goutil.FileExists(commonPath + "/constant.yaml") {
-		viper.SetConfigName("constant.yaml")
-		if err := viper.ReadInConfig(); err != nil {
-			log.Panicln(err)
+		vp := viper.New()
+		vp.SetConfigFile(commonPath + "/constant.yaml")
+		if err := vp.ReadInConfig(); err != nil {
+			return err
 		} else {
-			if err := viper.Unmarshal(&CommonConstant); err != nil {
-				log.Panicln(err)
+			if err := vp.Unmarshal(&CommonConstant); err != nil {
+				return err
 			}
+			// 自动载入配置
+			vp.OnConfigChange(func(e fsnotify.Event) {
+				err := vp.Unmarshal(&CommonConstant)
+				log.Printf("config file[%s] has changed, reload[%s]\n", e.Name, err)
+			})
+			vp.WatchConfig()
 		}
 	}
 	// 环境常量
 	if goutil.FileExists(configPath + "/envconstant.yaml") {
-		viper.SetConfigName("envconstant.yaml")
-		if err := viper.ReadInConfig(); err != nil {
-			log.Panicln(err)
+		vp := viper.New()
+		vp.SetConfigFile(configPath + "/envconstant.yaml")
+		if err := vp.ReadInConfig(); err != nil {
+			return err
 		} else {
-			if err := viper.Unmarshal(&EnvConstant); err != nil {
-				log.Panicln(err)
+			if err := vp.Unmarshal(&EnvConstant); err != nil {
+				return err
 			}
+			// 自动载入配置
+			vp.OnConfigChange(func(e fsnotify.Event) {
+				err := vp.Unmarshal(&EnvConstant)
+				log.Printf("config file[%s] has changed, reload[%s]\n", e.Name, err)
+			})
+			vp.WatchConfig()
 		}
 	}
 	// 服务
 	if goutil.FileExists(configPath + "/service.yaml") {
-		viper.SetConfigName("service.yaml")
-		if err := viper.ReadInConfig(); err != nil {
-			log.Panicln(err)
+		vp := viper.New()
+		vp.SetConfigFile(configPath + "/service.yaml")
+		if err := vp.ReadInConfig(); err != nil {
+			return err
 		} else {
-			if err := viper.Unmarshal(&ServiceConfig); err != nil {
-				log.Panicln(err)
+			if err := vp.Unmarshal(&ServiceConfig); err != nil {
+				return err
 			}
+			// 自动载入配置
+			vp.OnConfigChange(func(e fsnotify.Event) {
+				err := vp.Unmarshal(&ServiceConfig)
+				log.Printf("config file[%s] has changed, reload[%s]\n", e.Name, err)
+			})
+			vp.WatchConfig()
 		}
 	}
 	// 第三方服务配置
 	if goutil.FileExists(configPath + "/vendor.yaml") {
-		viper.SetConfigName("vendor.yaml")
-		if err := viper.ReadInConfig(); err != nil {
-			log.Panicln(err)
+		vp := viper.New()
+		vp.SetConfigFile(configPath + "/vendor.yaml")
+		if err := vp.ReadInConfig(); err != nil {
+			return err
 		} else {
-			if err := viper.Unmarshal(&VendorConfig); err != nil {
-				log.Panicln(err)
+			if err := vp.Unmarshal(&VendorConfig); err != nil {
+				return err
 			}
+			// 自动载入配置
+			vp.OnConfigChange(func(e fsnotify.Event) {
+				err := vp.Unmarshal(&VendorConfig)
+				log.Printf("config file[%s] has changed, reload[%s]\n", e.Name, err)
+			})
+			vp.WatchConfig()
 		}
 	}
 	// 数据库服务配置
 	if goutil.FileExists(configPath + "/db.yaml") {
-		viper.SetConfigName("db.yaml")
-		if err := viper.ReadInConfig(); err != nil {
-			log.Panicln(err)
+		vp := viper.New()
+		vp.SetConfigFile(configPath + "/db.yaml")
+		if err := vp.ReadInConfig(); err != nil {
+			return err
 		} else {
-			if err := viper.Unmarshal(&DbConfig); err != nil {
-				log.Panicln(err)
+			if err := vp.Unmarshal(&DbConfig); err != nil {
+				return err
 			}
+			// 自动载入配置
+			vp.OnConfigChange(func(e fsnotify.Event) {
+				err := vp.Unmarshal(&DbConfig)
+				log.Printf("config file[%s] has changed, reload[%s]\n", e.Name, err)
+			})
+			vp.WatchConfig()
 		}
 	}
-	// 自动载入配置
-	viper.OnConfigChange(func(e fsnotify.Event) {
-		log.Println(e.Name)
-	})
-	viper.WatchConfig()
+	return nil
 }
 
 func ConstantGroup(constantType, groupKey string) map[string]string {

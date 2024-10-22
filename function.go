@@ -3,6 +3,7 @@ package goutil
 import (
 	"encoding/binary"
 	"errors"
+	"github.com/idoubi/goz"
 	"github.com/neverlee/goyar"
 	"math/rand"
 	"net"
@@ -118,4 +119,31 @@ func FileExists(filePath string) bool {
 	} else {
 		return true
 	}
+}
+
+// Request http请求
+func Request(url, method string, timeout float32, params, headers map[string]any) ([]byte, error) {
+	r := goz.NewClient()
+	options := goz.Options{
+		Timeout: timeout,
+		Headers: headers,
+		Query:   params,
+	}
+	var resp *goz.Response
+	var err error
+	if method == "GET" {
+		options.Query = params
+		resp, err = r.Get(url, options)
+	} else if method == "POST" {
+		options.FormParams = params
+		resp, err = r.Post(url, options)
+	}
+	if err != nil || resp == nil {
+		return nil, err
+	}
+	body, err := resp.GetBody()
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
 }

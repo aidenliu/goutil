@@ -5,6 +5,7 @@ import (
 	"github.com/aidenliu/goutil/config"
 	"github.com/streadway/amqp"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -18,12 +19,14 @@ const (
 	connectWaitDelay = 5 * time.Second
 )
 
-type RejectError struct {
-	Err error
+type ConsumeResult struct {
+	error
+	Requeue bool
 }
 
-type RequeueError struct {
-	Err error
+type RabbitConfig struct {
+	ConfigKey string
+	DialStr   []string
 }
 
 type RabbitMQ struct {
@@ -77,18 +80,36 @@ type ConsumeConfig struct {
 }
 
 // New 创建RabbitMQ连接
-func New(configKey string) *RabbitMQ {
-	configItem := config.Service(configKey)
-	if configItem == nil {
-		log.Panicf("RabbitMQ configKey %s Not Found\n", configKey)
-		return nil
-	}
-	dialStr := fmt.Sprintf("amqp://%s:%s@%s/", configItem["login"], configItem["password"], configItem["host"])
-	r := &RabbitMQ{
-		dialStr: dialStr,
+func New(rc *RabbitConfig) (*RabbitMQ, error) {
+	var err error
+	r := &RabbitMQ{}
+	if rc.ConfigKey != "" {
+		configItem := config.Service(rc.ConfigKey)
+		if configItem == nil {
+			return nil, fmt.Errorf("rabbitMQ configKey %s not found", rc.ConfigKey)
+		}
+		r.dialStr = fmt.Sprintf("amqp://%s:%s@%s/", configItem["login"], configItem["password"], configItem["host"])
+		if _, err = r.connect(); err != nil {
+			return nil, err
+		}
+	} else {
+		var connectSuc bool
+		for _, v := range rc.DialStr {
+			if v == "" {
+				continue
+			}
+			r.dialStr = v
+			if _, err = r.connect(); err == nil {
+				connectSuc = true
+				break
+			}
+		}
+		if !connectSuc {
+			return nil, fmt.Errorf("all rabbitMQ config connect failure:%s", strings.Join(rc.DialStr, ","))
+		}
 	}
 	go r.reconnect()
-	return r
+	return r, nil
 }
 
 // reconnect 重连
@@ -111,9 +132,9 @@ func (r *RabbitMQ) reconnect() {
 			r.isConnected = false
 		case <-r.chNotify:
 			r.isConnected = false
+		default:
+			time.Sleep(reconnectCloseDelay)
 		}
-		log.Println("connect close....")
-		time.Sleep(reconnectCloseDelay)
 	}
 }
 
@@ -135,8 +156,6 @@ func (r *RabbitMQ) connect() (bool, error) {
 	r.connection.NotifyClose(r.connNotify)
 	r.chNotify = make(chan *amqp.Error, 1)
 	r.channel.NotifyClose(r.chNotify)
-
-	log.Println("connect suc....")
 	return true, nil
 }
 
@@ -167,7 +186,7 @@ func (r *RabbitMQ) Publish(playLoad []byte, p *PublishConfig) error {
 }
 
 // Consume 消费消息
-func (r *RabbitMQ) Consume(consumerCount int, callBack func([]byte) error, c *ConsumeConfig) error {
+func (r *RabbitMQ) Consume(consumerCount int, callBack func([]byte) ConsumeResult, c *ConsumeConfig) error {
 	for {
 		if !r.isConnected {
 			log.Println("connect retry....")
@@ -198,15 +217,15 @@ func (r *RabbitMQ) Consume(consumerCount int, callBack func([]byte) error, c *Co
 					return
 				}
 				for d := range delivery {
-					err := callBack(d.Body)
+					consumeResult := callBack(d.Body)
 					if c.AutoAck == false {
 						var ackErr error
-						if err != nil {
-							log.Println("callBack err:", err)
-							switch err.(type) {
-							case *RejectError:
+						if consumeResult.error != nil {
+							log.Println("callBack err:", consumeResult.error)
+							switch consumeResult.Requeue {
+							case false:
 								ackErr = d.Nack(false, false)
-							case *RequeueError:
+							case true:
 								ackErr = d.Nack(false, true)
 							default:
 								ackErr = d.Ack(false)
@@ -277,14 +296,4 @@ func (r *RabbitMQ) queueBind(ex *ExchangeConfig, q *QueueConfig) error {
 	routingKey := q.RoutingKey
 	exchangeName := ex.Name
 	return r.channel.QueueBind(queueName, routingKey, exchangeName, false, nil)
-}
-
-// Error 消息拒绝重新入队列错误
-func (e *RejectError) Error() string {
-	return e.Err.Error()
-}
-
-// Error 消息可重新入队列错误
-func (e *RequeueError) Error() string {
-	return e.Err.Error()
 }
