@@ -44,7 +44,6 @@ var DbConfig = dbConfig{}
 
 func init() {
 	log.SetFlags(log.Lshortfile | log.Lmicroseconds | log.Ldate)
-	_ = InitLoad()
 }
 
 func getConfigPath() string {
